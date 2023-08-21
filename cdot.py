@@ -2,7 +2,7 @@
 import argparse, os, enum, subprocess
 
 
-# TODO: add visited
+# TODO: add tracking of visited functions (by file, row and function name)
 
 
 class FunctionTypes(enum.IntEnum):
