@@ -1,6 +1,6 @@
 # libshs
 
-Just some utils for helping me.
+Just some utils that help me.
 
 Including:
 
