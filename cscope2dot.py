@@ -4,7 +4,15 @@ import argparse, os, enum, subprocess as sp, sys
 
 
 VISITED = {}
-DEPTH = 8
+DEPTH = 4
+
+CLUSTERS_PALETTE = [
+    "#0FC2C0",
+    "#0CABA8",
+    "#008F8C",
+    "#015958",
+    "#023535",
+]
 
 
 class Function:
@@ -24,6 +32,10 @@ class Function:
 
     def id(self) -> str:
         return f'{self.name}_{self.row}'
+
+
+    def __hash__(self) -> int:
+        return hash((self.file, self.name, self.row))
 
 
 class FunctionTypes(enum.IntEnum):
@@ -131,11 +143,15 @@ def tree2dot(tree: tuple, dir: FunctionTypes, depth: int = 1) -> str:
     indent = '  ' * depth
     statements = ''
     if isinstance(children, frozenset):
-        statements += indent + 'subgraph ' + root.id() + '_sg {\n'
+        statements += indent + 'subgraph cluster_' + root.id() + ' {\n'
+        statements += f'{indent}  color="{CLUSTERS_PALETTE[depth % len(CLUSTERS_PALETTE)]}"'
+        built_routes = set()
         for child in children:
             child_root = child[0]
-            (A, B) = _dir(root, child_root, dir)
-            statements += f'{indent}  {A.id()} -> {B.id()};\n'
+            if child_root.id() not in built_routes:
+                (A, B) = _dir(root, child_root, dir)
+                statements += f'{indent}  {A.id()} -> {B.id()};\n'
+            built_routes.add(child_root.id())
             if child[1] is None:
                 continue
             statements += tree2dot(child, dir, depth + 1)
