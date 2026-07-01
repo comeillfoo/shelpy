@@ -1,8 +1,9 @@
-# libshs
+# shelpy
 
-Just some utils that help me.
+Mostly shell helper scripts.
 
-Including:
+## scripts
 
-1. Call graph drawer using cscope
+1. Call graph drawer using cscope (`cscope2dot.py`)
 2. Difference limiter to single function
+
