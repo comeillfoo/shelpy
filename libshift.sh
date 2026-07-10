@@ -11,6 +11,12 @@ __libshift_sh__='loaded'
 # @brief the timestamp shift start
 SHIFT_START_TIME=''
 
+# @brief just a stub, redefine in ur scripts
+# @return 0 on success
+shift_prepare() {
+    :
+}
+
 # @brief starts shift
 # @return 0 on success
 shift_start() {
@@ -18,6 +24,12 @@ shift_start() {
     printf 'Shift started at: %s\n' \
         "$(date -d "@${SHIFT_START_TIME}" --iso-8601=seconds)"
     shift_prepare
+}
+
+# @brief just a stub for cleanup, redefine in ur scripts
+# @return 0 on success
+shift_cleanup() {
+    :
 }
 
 # @brief ends shift
