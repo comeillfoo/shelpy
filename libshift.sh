@@ -11,7 +11,7 @@ __libshift_sh__='loaded'
 # @brief the timestamp shift start
 SHIFT_START_TIME=''
 
-# @brief just a stub, redefine in ur scripts
+# @brief just a stub for shift preparation, redefine in ur scripts
 # @return 0 on success
 shift_prepare() {
     :
@@ -21,7 +21,7 @@ shift_prepare() {
 # @return 0 on success
 shift_start() {
     SHIFT_START_TIME="$(date '+%s')"
-    printf 'Shift started at: %s\n' \
+    printf '[*] Shift started at: %s\n' \
         "$(date -d "@${SHIFT_START_TIME}" --iso-8601=seconds)"
     shift_prepare
 }
@@ -36,9 +36,11 @@ shift_cleanup() {
 # @return 0 on success
 shift_end() {
     local shift_stop_time="$(date '+%s')"
-    printf 'Shift started at: %s\nShift ended at: %s\nLasted for: %(%H:%M:%S)T\n' \
-        "$(date -d "@${SHIFT_START_TIME}" --iso-8601=seconds)" \
-        "$(date -d "@${shift_stop_time}" --iso-8601=seconds)" \
+    printf '[*] Shift started at: %s\n' \
+        "$(date -d "@${SHIFT_START_TIME}" --iso-8601=seconds)"
+    printf '[*] Shift ended at: %s\n' \
+        "$(date -d "@${shift_stop_time}" --iso-8601=seconds)"
+    printf '[*] Lasted for: %(%H:%M:%S)T\n' \
         "$((shift_stop_time - SHIFT_START_TIME))"
     shift_cleanup
 }
