@@ -56,7 +56,7 @@ load_dots_sync()
 	# @brief exit print
 	local esign="${_GRN}${_BLD}\u2713${_RST}"
 
-	"$@" &
+	{ "$@" & } 2>/dev/null
 	jobpid="$!"
 	while _is_job_running "${jobpid}"; do
 		tput sc
@@ -84,7 +84,7 @@ load_dots_async()
 {
 	# @brief job's pid
 	local jobpid
-	"$@" &
+	{ "$@" & } 2>/dev/null
 	jobpid="$!"
 	_JOBS_ARGS["${jobpid}"]="$(printf '%s ' "$@")"
 	_JOBS["${jobpid}"]='-1'
