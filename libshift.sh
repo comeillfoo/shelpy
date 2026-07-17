@@ -11,11 +11,13 @@ __libshift_sh__='loaded'
 # @brief the timestamp shift start
 SHIFT_START_TIME=''
 
+
 # @brief just a stub for shift preparation, redefine in ur scripts
 # @return 0 on success
 shift_prepare() {
     :
 }
+
 
 # @brief starts shift
 # @return 0 on success
@@ -26,11 +28,13 @@ shift_start() {
     shift_prepare
 }
 
+
 # @brief just a stub for cleanup, redefine in ur scripts
 # @return 0 on success
 shift_cleanup() {
     :
 }
+
 
 # @brief ends shift
 # @return 0 on success
@@ -44,3 +48,4 @@ shift_end() {
         "$((shift_stop_time - SHIFT_START_TIME))"
     shift_cleanup
 }
+
