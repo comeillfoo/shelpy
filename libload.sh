@@ -14,14 +14,20 @@ _BLD="$(tput bold)"
 _RST="$(tput sgr0)"
 
 # @brief dots loader states
-_DOTS=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-# @brief number of loader states
-_DOTS_NR="${#_DOTS[@]}"
+_DOTS='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+
+# @brief hole loader states
+_HOLE='⣾⣽⣻⢿⡿⣟⣯⣷'
+
+# @brief wave loader states
+_WAVE='▁▂▃▄▅▆▇██▇▆▅▄▃▂▁'
 
 # @brief jobs' queue
 declare -A _JOBS
 # @brief jobs' args
 declare -A _JOBS_ARGS
+# @brief jobs' loader
+declare -A _JOBS_LOADER
 
 
 # @brief tests if process still running
@@ -42,11 +48,16 @@ _job_exit_code()
 }
 
 
-# @brief synchronously run job with dots loader
-# @param[in] @: args
+# @brief synchronously run job with specified loder
+# @param[in] 1: name  of the variable with loader states
+# @param[in] 2+: args
 # @return job's exit code
-load_dots_sync()
+_load_loader_sync()
 {
+	# @brief loader states
+	local loader="$1"; shift
+	# @brief number of loader states
+	local loader_nr="${#loader}"
 	# @brief iterator
 	local i=0
 	# @brief exit status
@@ -60,8 +71,8 @@ load_dots_sync()
 	jobpid="$!"
 	while _is_job_running "${jobpid}"; do
 		tput sc
-		printf '%s %s ' "${_DOTS[${i}]}" "$@"
-		i="$(((i + 1) % _DOTS_NR))"
+		printf '%s %s ' "${loader:${i}:1}" "$@"
+		i="$(((i + 1) % loader_nr))"
 		sleep 0.1s
 		tput rc
 		tput el
@@ -77,17 +88,75 @@ load_dots_sync()
 }
 
 
-# @brief starts an asynchronous job with dots loader
+# @brief synchronously run job with dots loader
 # @param[in] @: args
-# @return 0 on success
-load_dots_async()
+# @return job's exit code
+load_dots_sync()
 {
+	_load_loader_sync "${_DOTS}" "$@"
+}
+
+
+# @brief synchronously run job with hole loader
+# @param[in] @: args
+# @return job's exit code
+load_hole_sync()
+{
+	_load_loader_sync "${_HOLE}" "$@"
+}
+
+
+# @brief synchronously run job with wave loader
+# @param[in] @: args
+# @return job's exit code
+load_wave_sync()
+{
+	_load_loader_sync "${_WAVE}" "$@"
+}
+
+
+# @brief starts an asynchronous job with the specified loader
+# @param[in] 1: loader
+# @param[in] 2+: args
+# @return 0 on success
+_load_loader_async()
+{
+	# @brief loader states
+	local loader="$1"; shift
 	# @brief job's pid
 	local jobpid
 	{ "$@" & } 2>/dev/null
 	jobpid="$!"
 	_JOBS_ARGS["${jobpid}"]="$(printf '%s ' "$@")"
 	_JOBS["${jobpid}"]='-1'
+	_JOBS_LOADER["${jobpid}"]="${loader}"
+}
+
+
+# @brief starts an asynchronous job with dots loader
+# @param[in] @: args
+# @return 0 on success
+load_dots_async()
+{
+	_load_loader_async "${_DOTS}" "$@"
+}
+
+
+# @brief starts an asynchronous job with hole loader
+# @param[in] @: args
+# @return 0 on success
+load_hole_async()
+{
+	_load_loader_async "${_HOLE}" "$@"
+}
+
+
+# @brief starts an asynchronous job with wave loader
+# @param[in] @: args
+# @return 0 on success
+load_wave_async()
+{
+	_load_loader_async "${_WAVE}" "$@"
 }
 
 
@@ -103,6 +172,10 @@ load_monitor()
 	local should_exit='false'
 	# @brief exit print
 	local esign
+	# @brief loader states
+	local loader
+	# @brief loader number of states
+	local loader_nr
 
 	tput sc
 	while ! "${should_exit}"; do
@@ -111,9 +184,10 @@ load_monitor()
 		tput sc
 		should_exit='true'
 		for jobpid in "${!_JOBS[@]}"; do
+			loader="${_JOBS_LOADER[${jobpid}]}"
+			loader_nr="${#loader}"
 			if [ "${_JOBS[${jobpid}]}" -lt 0 ] && _is_job_running "${jobpid}"; then
-				# TODO: print args
-				printf '%s %s\n' "${_DOTS[${i}]}" "${_JOBS_ARGS[${jobpid}]}"
+				printf '%s %s\n' "${loader:$((i % loader_nr)):1}" "${_JOBS_ARGS[${jobpid}]}"
 				should_exit='false'
 				continue
 			fi
@@ -126,11 +200,12 @@ load_monitor()
 			if [ "${_JOBS[${jobpid}]}" -ne 0 ]; then esign="${_RED}${_BLD}\u2717${_RST}"; fi
 			printf '%b %s\n' "${esign}" "${_JOBS_ARGS[${jobpid}]}"
 		done
-		i="$(((i + 1) % _DOTS_NR))"
+		i="$((i + 1))"
 		sleep 0.1s
 	done
 
 	# clean jobs queue
 	declare -gA _JOBS
 	declare -gA _JOBS_ARGS
+	declare -gA _JOBS_LOADER
 }
