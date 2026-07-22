@@ -67,9 +67,13 @@ _load_loader_sync()
 	# @brief exit print
 	local esign="${_GRN}${_BLD}\u2713${_RST}"
 
-	{ "$@" & } 2>/dev/null
-	jobpid="$!"
+	coproc { "$@"; }
+	jobpid="${COPROC_PID}"
 	while _is_job_running "${jobpid}"; do
+		while read -u "${COPROC[0]}" -t 0 line; do
+			read -u "${COPROC[0]}" -e line
+			echo "${line}"
+		done
 		tput sc
 		printf '%s %s ' "${loader:${i}:1}" "$@"
 		i="$(((i + 1) % loader_nr))"
