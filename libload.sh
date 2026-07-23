@@ -10,6 +10,7 @@ __libload_sh__='loaded'
 
 _RED="$(tput setaf 1)"
 _GRN="$(tput setaf 2)"
+_BLU="$(tput setaf 4)"
 _BLD="$(tput bold)"
 _RST="$(tput sgr0)"
 
@@ -28,6 +29,8 @@ declare -A _JOBS
 declare -A _JOBS_ARGS
 # @brief jobs' loader
 declare -A _JOBS_LOADER
+# @brief jobs' name
+declare -A _JOBS_NAME
 
 
 # @brief tests if process still running
@@ -45,6 +48,22 @@ _is_job_running()
 _job_exit_code()
 {
 	wait "$1" &>/dev/null
+}
+
+
+# @brief writes readable fd until its empty line by line
+# @param[in] 1: readable file descriptor
+# @param[in] 2: format
+# @return 0 on success
+_flush_fd()
+{
+	local fd="$1"
+	local fmt="$2"
+	local line
+	while read -u "${fd}" -et 0 line; do
+		read -u "${fd}" -e line
+		printf "${fmt}" "${line}"
+	done
 }
 
 
@@ -70,12 +89,9 @@ _load_loader_sync()
 	coproc { "$@"; }
 	jobpid="${COPROC_PID}"
 	while _is_job_running "${jobpid}"; do
-		while read -u "${COPROC[0]}" -t 0 line; do
-			read -u "${COPROC[0]}" -e line
-			echo "${line}"
-		done
+		_flush_fd "${COPROC[0]}" '%s\n'
 		tput sc
-		printf '%s %s ' "${loader:${i}:1}" "$@"
+		printf ' %s %s ' "${loader:${i}:1}" "$@"
 		i="$(((i + 1) % loader_nr))"
 		sleep 0.1s
 		tput rc
@@ -85,7 +101,7 @@ _load_loader_sync()
 	rc="$?"
 
 	if [ "${rc}" -ne 0 ]; then esign="${_RED}${_BLD}\u2717${_RST}"; fi
-	printf '\r%b ' "${esign}"
+	printf '\r %b ' "${esign}"
 	printf '%s ' "$@"
 	echo
 	return "${rc}"
@@ -127,13 +143,19 @@ _load_loader_async()
 {
 	# @brief loader states
 	local loader="$1"; shift
+	# @brief job name
+	local jobname="$(mktemp -u 'LJOB_XXXXXX')"
 	# @brief job's pid
 	local jobpid
-	{ "$@" & } 2>/dev/null
-	jobpid="$!"
+	# @brief job's pid varname
+	local jobpid_var
+	coproc "${jobname}" { "$@"; }
+	jobpid_var="${jobname}_PID"
+	jobpid="${!jobpid_var}"
 	_JOBS_ARGS["${jobpid}"]="$(printf '%s ' "$@")"
 	_JOBS["${jobpid}"]='-1'
 	_JOBS_LOADER["${jobpid}"]="${loader}"
+	_JOBS_NAME["${jobpid}"]="${jobname}"
 }
 
 
@@ -170,6 +192,8 @@ load_monitor()
 {
 	# @brief job pid
 	local jobpid
+	# @brief job name
+	local jobname
 	# @brief loader states iterator
 	local i=0
 	# @brief should exit
@@ -185,13 +209,24 @@ load_monitor()
 	while ! "${should_exit}"; do
 		tput rc
 		tput el
+		# drain jobs' stdouts
+		for jobpid in "${!_JOBS[@]}"; do
+			jobname="${_JOBS_NAME["${jobpid}"]}"
+			if [ "${_JOBS[${jobpid}]}" -lt 0 ] && _is_job_running "${jobpid}"; then
+				# TODO: distribute random colours between jobs
+				_flush_fd "${!jobname[0]}" "${_BLU}${_BLD}[$(printf '%6d' "${jobpid}")]:${_RST} %s\n"
+			fi
+		done
+
+		# then print their statuses
 		tput sc
 		should_exit='true'
 		for jobpid in "${!_JOBS[@]}"; do
 			loader="${_JOBS_LOADER[${jobpid}]}"
 			loader_nr="${#loader}"
+			jobname="${_JOBS_NAME["${jobpid}"]}"
 			if [ "${_JOBS[${jobpid}]}" -lt 0 ] && _is_job_running "${jobpid}"; then
-				printf '%s %s\n' "${loader:$((i % loader_nr)):1}" "${_JOBS_ARGS[${jobpid}]}"
+				printf ' %s %s\n' "${loader:$((i % loader_nr)):1}" "${_JOBS_ARGS[${jobpid}]}"
 				should_exit='false'
 				continue
 			fi
@@ -202,14 +237,19 @@ load_monitor()
 
 			esign="${_GRN}${_BLD}\u2713${_RST}"
 			if [ "${_JOBS[${jobpid}]}" -ne 0 ]; then esign="${_RED}${_BLD}\u2717${_RST}"; fi
-			printf '%b %s\n' "${esign}" "${_JOBS_ARGS[${jobpid}]}"
+			printf ' %b %s\n' "${esign}" "${_JOBS_ARGS[${jobpid}]}"
 		done
 		i="$((i + 1))"
 		sleep 0.1s
 	done
 
 	# clean jobs queue
+	unset _JOBS
 	declare -gA _JOBS
+	unset _JOBS_ARGS
 	declare -gA _JOBS_ARGS
+	unset _JOBS_LOADER
 	declare -gA _JOBS_LOADER
+	unset _JOBS_NAME
+	declare -gA _JOBS_NAME
 }
