@@ -54,13 +54,15 @@ _job_exit_code()
 # @brief writes readable fd until its empty line by line
 # @param[in] 1: readable file descriptor
 # @param[in] 2: format
+# @param[in] 3: job's pid
 # @return 0 on success
 _flush_fd()
 {
 	local fd="$1"
 	local fmt="$2"
+	local jobpid="$3"
 	local line
-	while read -u "${fd}" -et 0 line; do
+	while _is_job_running "${jobpid}" && read -u "${fd}" -et 0 line; do
 		read -u "${fd}" -e line
 		printf "${fmt}" "${line}"
 	done
@@ -89,7 +91,7 @@ _load_loader_sync()
 	coproc { "$@"; }
 	jobpid="${COPROC_PID}"
 	while _is_job_running "${jobpid}"; do
-		_flush_fd "${COPROC[0]}" '%s\n'
+		_flush_fd "${COPROC[0]}" '%s\n' "${jobpid}"
 		tput sc
 		printf ' %s %s ' "${loader:${i}:1}" "$@"
 		i="$(((i + 1) % loader_nr))"
@@ -214,7 +216,8 @@ load_monitor()
 			jobname="${_JOBS_NAME["${jobpid}"]}"
 			if [ "${_JOBS[${jobpid}]}" -lt 0 ] && _is_job_running "${jobpid}"; then
 				# TODO: distribute random colours between jobs
-				_flush_fd "${!jobname[0]}" "${_BLU}${_BLD}[$(printf '%6d' "${jobpid}")]:${_RST} %s\n"
+				_flush_fd "${!jobname[0]}" "${_BLU}${_BLD}[$(printf '%6d' "${jobpid}")]:${_RST} %s\n" \
+					"${jobpid}"
 			fi
 		done
 
